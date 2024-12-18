@@ -1,0 +1,23 @@
+{
+  "projects": {
+    "default": "news-collector-prod",
+    "staging": "news-collector-stg",
+    "development": "news-collector-dev"
+  },
+  "targets": {
+    "news-collector-prod": {
+      "hosting": {
+        "news-collector": [
+          "news-collector-prod"
+        ]
+      }
+    },
+    "news-collector-stg": {
+      "hosting": {
+        "news-collector": [
+          "news-collector-stg"
+        ]
+      }
+    }
+  }
+}

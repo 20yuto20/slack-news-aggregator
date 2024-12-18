@@ -1,0 +1,42 @@
+# 企業一覧とスクレイピング設定
+# 企業ID、企業名、HP・PRTimes URL、使用するパーサ情報
+
+companies:
+- id: "B23000199"
+  name: "ALTURA X株式会社"
+  hp_news:
+    url: "https://altura.co.jp/posts"
+    parser: "generic_scraper"
+    selector:
+      title: ".news-title"
+      date: ".news-date"
+      content: ".news-content"
+  prtimes:
+    url: "https://prtimes.jp/main/html/searchrlp/company_id/57826"
+    enabled: true
+
+- id: "B24000278"
+  name: "amu株式会社"
+  hp_news:
+    url: "https://www.amu.co.jp/news"
+    parser: "generic_scraper"
+    selector:
+      title: ".news-title"
+      date: ".news-date"
+      content: ".news-content"
+  prtimes:
+    url: "https://prtimes.jp/main/html/searchrlp/company_id/102171"
+    enabled: true
+
+# スクレイピング共通設定
+scraping:
+  interval: 3600  # スクレイピング間隔(秒)
+  timeout: 30     # リクエストタイムアウト(秒)
+  retry: 3        # リトライ回数
+  user_agent: "NewsBot/1.0"
+
+# Slack通知設定
+slack:
+  channel: "#news-alerts"
+  username: "News Bot"
+  icon_emoji: ":newspaper:"

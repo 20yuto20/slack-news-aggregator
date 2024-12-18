@@ -1,0 +1,82 @@
+# Firestore設定
+# コレクション名とドキュメント構造の定義
+
+collections:
+  articles:
+    name: "articles"
+    fields:
+      - name: "company_id"
+        type: "string"
+        required: true
+      - name: "title"
+        type: "string"
+        required: true
+      - name: "url"
+        type: "string"
+        required: true
+      - name: "source"
+        type: "string"
+        enum: ["hp", "prtimes"]
+        required: true
+      - name: "published_at"
+        type: "timestamp"
+        required: true
+      - name: "created_at"
+        type: "timestamp"
+        required: true
+      - name: "updated_at"
+        type: "timestamp"
+        required: true
+      - name: "content"
+        type: "string"
+        required: false
+      - name: "image_url"
+        type: "string"
+        required: false
+      - name: "status"
+        type: "string"
+        enum: ["active", "deleted"]
+        required: true
+
+  companies:
+    name: "companies"
+    fields:
+      - name: "company_id"
+        type: "string"
+        required: true
+      - name: "name"
+        type: "string"
+        required: true
+      - name: "hp_url"
+        type: "string"
+        required: false
+      - name: "prtimes_url"
+        type: "string"
+        required: false
+      - name: "created_at"
+        type: "timestamp"
+        required: true
+      - name: "updated_at"
+        type: "timestamp"
+        required: true
+
+# インデックス設定
+indexes:
+  - collection: "articles"
+    fields:
+      - name: "company_id"
+        order: "ASCENDING"
+      - name: "published_at"
+        order: "DESCENDING"
+
+  - collection: "articles"
+    fields:
+      - name: "source"
+        order: "ASCENDING"
+      - name: "published_at"
+        order: "DESCENDING"
+
+# バッチ処理設定
+batch:
+  max_retry: 3
+  timeout: 300  # seconds
