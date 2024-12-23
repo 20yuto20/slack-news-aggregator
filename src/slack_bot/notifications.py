@@ -18,25 +18,17 @@ class SlackNotifier:
     def _load_config(self) -> Dict[str, Any]:
         """
         Slack設定ファイルを読み込む
-        
-        Returns:
-            Dict: Slack設定
         """
         config_path = os.path.join(os.path.dirname(__file__), '../configs/slack_config.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             config = yaml.safe_load(f)
-            # 環境に応じた設定を返す
             env = os.getenv('ENVIRONMENT', 'development')
             return config[env]
 
     def _get_bot_token(self) -> str:
         """
         Slack Bot Tokenを取得
-        
-        Returns:
-            str: Bot Token
         """
-        # 本番環境ではSecret Managerから取得
         if os.getenv('ENVIRONMENT') == 'production':
             from google.cloud import secretmanager
             client = secretmanager.SecretManagerServiceClient()
@@ -45,13 +37,9 @@ class SlackNotifier:
             return response.payload.data.decode("UTF-8")
         return self.config['bot_token']
 
-    def notify_new_articles(self, articles: List[Article], company_name: str):
+    def notify_new_articles(self, articles: List[Dict[str, Any]], company_name: str):
         """
         新規記事をSlackに通知
-        
-        Args:
-            articles: 通知する記事のリスト
-            company_name: 企業名
         """
         if not articles:
             return
@@ -68,15 +56,19 @@ class SlackNotifier:
         ]
 
         for article in articles:
+            published_at_str = ""
+            if 'published_at' in article and isinstance(article['published_at'], datetime):
+                published_at_str = article['published_at'].strftime('%Y年%m月%d日 %H:%M')
+
             blocks.extend([
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
                         "text": (
-                            f"*<{article.url}|{article.title}>*\n"
-                            f"📅 {article.published_at.strftime('%Y年%m月%d日 %H:%M')}\n"
-                            f"📰 {article.source.upper()}"
+                            f"*<{article['url']}|{article['title']}>*\n"
+                            f"📅 {published_at_str}\n"
+                            f"📰 {article['source'].upper()}"
                         )
                     }
                 },
@@ -94,9 +86,6 @@ class SlackNotifier:
     def notify_scraping_result(self, results: List[ScrapingResult]):
         """
         スクレイピング実行結果を通知
-        
-        Args:
-            results: スクレイピング結果のリスト
         """
         blocks = [
             {
@@ -152,10 +141,6 @@ class SlackNotifier:
     def notify_error(self, error_message: str, error_detail: Optional[str] = None):
         """
         エラーを通知
-        
-        Args:
-            error_message: エラーメッセージ
-            error_detail: エラー詳細(オプション)
         """
         blocks = [
             {

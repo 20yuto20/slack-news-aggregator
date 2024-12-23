@@ -1,7 +1,7 @@
 from typing import Any, Callable, Dict, Optional
 from google.cloud import scheduler_v1
 from google.cloud import tasks_v2
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import logging
 import os
@@ -11,7 +11,7 @@ class TaskScheduler:
     Cloud SchedulerとCloud Tasksを使用したスケジューラー
     """
 
-    def __init__(self, project_id: str, location, str):
+    def __init__(self, project_id: str, location: str):
         self.project_id = project_id
         self.location = location
         self.scheduler_client = scheduler_v1.CloudSchedulerClient()
@@ -31,29 +31,12 @@ class TaskScheduler:
     ) -> scheduler_v1.Job:
         """
         定期ジョブ実行を作成
-
-        Args:
-            job_name (str): ジョブ名
-            schedule (str): スケジュール(CRON形式)
-            target_url (str): 実行するエンドポイントURL
-            http_method (str, optional): HTTPメソッド
-            body (Optional[Dict[str, Any]], optional): リクエストボディ
-            headers (Optional[Dict[str, str]], optional): HTTPヘッダー
-            description (str, optional): ジョブの説明
-
-        Returns:
-            scheduler_v1.Job: 作成したジョブ
         """
         try:
             job_path = f"{self.parent}/jobs/{job_name}"
-
-            # HTTPターゲットの設定
-            hhtp_target = scheduler_v1.HttpTarget()
+            http_target = scheduler_v1.HttpTarget()
             http_target.uri = target_url
-            http_target.http_method = getattr(
-                scheduler_v1.HttpMethod,
-                http_method.upper()
-            )
+            http_target.http_method = getattr(scheduler_v1.HttpMethod, http_method.upper())
 
             if body:
                 http_target.body = json.dumps(body).encode()
@@ -61,7 +44,6 @@ class TaskScheduler:
             if headers:
                 http_target.headers = headers
             
-            # ジョブの設定
             job = scheduler_v1.Job(
                 name=job_path,
                 http_target=http_target,
@@ -88,16 +70,8 @@ class TaskScheduler:
         target_url: Optional[str] = None,
         body: Optional[Dict[str, Any]] = None,
     ) -> scheduler_v1.Job:
-        """_summary_
-
-        Args:
-            job_name (str): 更新するジョブ
-            schedule (Optional[str], optional): 新しいスケジュール
-            target_url (Optional[str], optional): 新しいターゲットURL
-            body (Optional[Dict[str, Any]], optional): 新しいリクエストbody
-
-        Returns:
-            scheduler_v1.Job: 更新したジョブ
+        """
+        ジョブを更新
         """
         try:
             job_path = f"{self.parent}/jobs/{job_name}"
@@ -131,9 +105,6 @@ class TaskScheduler:
     def delete_job(self, job_name: str):
         """
         ジョブを削除
-
-        Args:
-            job_name (str): 削除したいジョブ名
         """
         try:
             job_path = f"{self.parent}/jobs/{job_name}"
@@ -154,14 +125,6 @@ class TaskScheduler:
     ):
         """
         一回限りのタスクを作成
-
-        Args:
-            queue_name: タスクキュー名
-            task_name: タスク名
-            target_url: 実行するエンドポイントのURL
-            payload: タスクのペイロード
-            schedule_time: 実行予定時刻
-            service_account_email: 実行に使用するサービスアカウント
         """
         try:
             parent = self.tasks_client.queue_path(
@@ -204,12 +167,6 @@ class TaskScheduler:
     def get_job_status(self, job_name: str) -> Dict[str, Any]:
         """
         ジョブの状態を取得
-
-        Args:
-            job_name: ジョブ名
-
-        Returns:
-            Dict: ジョブの状態情報
         """
         try:
             job_path = f"{self.parent}/jobs/{job_name}"

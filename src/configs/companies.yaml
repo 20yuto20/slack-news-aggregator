@@ -1,29 +1,17 @@
 # 企業一覧とスクレイピング設定
-# 企業ID、企業名、HP・PRTimes URL、使用するパーサ情報
+# HP・PRTimes URL などが定義されていましたが、HP関連を削除しPRTimesのみを残します
 
 companies:
 - id: "B23000199"
   name: "ALTURA X株式会社"
-  hp_news:
-    url: "https://altura.co.jp/posts"
-    parser: "generic_scraper"
-    selector:
-      title: ".news-title"
-      date: ".news-date"
-      content: ".news-content"
+  # HPニュース設定 (hp_news) を削除
   prtimes:
     url: "https://prtimes.jp/main/html/searchrlp/company_id/57826"
     enabled: true
 
 - id: "B24000278"
   name: "amu株式会社"
-  hp_news:
-    url: "https://www.amu.co.jp/news"
-    parser: "generic_scraper"
-    selector:
-      title: ".news-title"
-      date: ".news-date"
-      content: ".news-content"
+  # HPニュース設定 (hp_news) を削除
   prtimes:
     url: "https://prtimes.jp/main/html/searchrlp/company_id/102171"
     enabled: true

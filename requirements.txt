@@ -16,7 +16,7 @@ lxml==4.9.3
 # YAML Processing
 PyYAML==6.0.1
 
-# Async Support
+# Async Support (現在は同期化したが依存は残しておく)
 aiohttp==3.8.5
 asyncio==3.4.3
 

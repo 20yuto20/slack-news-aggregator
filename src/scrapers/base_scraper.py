@@ -21,31 +21,12 @@ class BaseScraper(ABC):
     def get_news(self, url: str) -> List[Dict[str, Any]]:
         """
         ニュース記事を取得する抽象メソッド
-        
-        Args:
-            url: スクレイピング対象のURL
-            
-        Returns:
-            List[Dict]: 取得した記事のリスト
-            各記事は以下のキーを含む辞書:
-            - title: 記事タイトル
-            - url: 記事URL
-            - published_at: 公開日時
-            - content: 記事本文(オプション)
-            - image_url: 画像URL(オプション)
         """
         pass
 
     def _fetch_page(self, url: str) -> Optional[BeautifulSoup]:
         """
         ページを取得してBeautifulSoupオブジェクトを返す
-        
-        Args:
-            url: 取得対象のURL
-            
-        Returns:
-            BeautifulSoup: パース済みのHTMLオブジェクト
-            エラー時はNone
         """
         for i in range(self.retry):
             try:
@@ -62,13 +43,6 @@ class BaseScraper(ABC):
     def _parse_date(self, date_str: str) -> Optional[datetime]:
         """
         日付文字列をdatetimeオブジェクトにパースする
-        
-        Args:
-            date_str: パース対象の日付文字列
-            
-        Returns:
-            datetime: パース済みの日付オブジェクト
-            パース失敗時はNone
         """
         date_formats = [
             '%Y年%m月%d日',
@@ -89,12 +63,6 @@ class BaseScraper(ABC):
     def _clean_text(self, text: str) -> str:
         """
         テキストの前後の空白を除去し、改行を正規化する
-        
-        Args:
-            text: クリーニング対象のテキスト
-            
-        Returns:
-            str: クリーニング済みのテキスト
         """
         if not text:
             return ""

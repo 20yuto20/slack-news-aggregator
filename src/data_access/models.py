@@ -4,7 +4,6 @@ from typing import Any, Dict, Optional
 
 @dataclass
 class Article:
-    # TODO: 必要に応じてデータの構造を変える
     """
     記事データのモデルクラス
     """
@@ -22,9 +21,6 @@ class Article:
     def to_dict(self) -> dict:
         """
         記事データを辞書形式に変換
-        
-        Returns:
-            dict: 記事データの辞書
         """
         return {
             'id': self.id,
@@ -50,12 +46,6 @@ class Company:
     updated_at: datetime
 
     def to_dict(self) -> dict:
-        """
-        企業データを辞書形式に変換
-        
-        Returns:
-            dict: 企業データの辞書
-        """
         return {
             'id': self.id,
             'name': self.name,
@@ -76,12 +66,6 @@ class ScrapingResult:
     execution_time: Optional[float] = None
 
     def to_dict(self) -> dict:
-        """
-        スクレイピング結果を辞書形式に変換
-        
-        Returns:
-            dict: スクレイピング結果の辞書
-        """
         return {
             'company_id': self.company_id,
             'source': self.source,

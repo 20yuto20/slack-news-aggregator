@@ -4,7 +4,6 @@ from logging.config import dictConfig
 import yaml
 from typing import Dict, Any
 
-# ロギング設定
 def setup_logging():
     """アプリケーションのロギング設定を初期化"""
     config = {
@@ -31,7 +30,7 @@ def setup_logging():
             },
         },
         'loggers': {
-            '': {  # root logger
+            '': {
                 'handlers': ['default', 'error_file'],
                 'level': 'INFO',
                 'propagate': True
@@ -50,7 +49,6 @@ def load_config() -> Dict[str, Any]:
     config = {}
     config_dir = os.path.join(os.path.dirname(__file__), 'configs')
     
-    # 各設定ファイルを読み込み
     config_files = [
         'companies.yaml',
         'slack_config.yaml',
@@ -79,21 +77,14 @@ def init_firebase():
 
 def init_app():
     """アプリケーションを初期化"""
-    # ロギングの設定
     setup_logging()
     logger = logging.getLogger(__name__)
     logger.info("Starting application initialization...")
     
     try:
-        # 設定の読み込み
         config = load_config()
-        
-        # Firebase初期化
         init_firebase()
-        
-        # Flaskアプリケーションのインポートと初期化
         from .app import app
-        
         logger.info("Application initialization completed successfully")
         return app
         
@@ -101,7 +92,6 @@ def init_app():
         logger.error(f"Failed to initialize application: {str(e)}")
         raise
 
-# エントリーポイント
 app = init_app()
 
 if __name__ == '__main__':

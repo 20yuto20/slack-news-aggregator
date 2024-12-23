@@ -15,38 +15,32 @@ class SlackEventHandler:
         self.db = FirestoreClient()
         self.logger = logging.getLogger(__name__)
 
-    async def handle_mention(self, event: Dict[str, Any]):
+    def handle_mention(self, event: Dict[str, Any]):
         """
-        メンション(@)を処理
-        
-        Args:
-            event: Slackイベントデータ
+        メンション(@)を処理 (同期的に動作)
         """
         try:
-            text = event['text'].lower().replace(f"<@{event['bot_id']}>", "").strip()
-            
+            text = event.get('text', '').lower()
+            bot_id = event.get('bot_id')
+            if bot_id:
+                text = text.replace(f"<@{bot_id}>", "").strip()
+
             # コマンドを解析
             if "help" in text or "ヘルプ" in text:
-                await self._show_help(event['channel'])
+                self._show_help(event['channel'])
             elif "最近" in text or "recent" in text:
                 days = self._extract_days(text) or 7
-                await self._show_recent_articles(event['channel'], days)
+                self._show_recent_articles(event['channel'], days)
             else:
-                await self._show_help(event['channel'])
+                self._show_help(event['channel'])
 
         except Exception as e:
             self.logger.error(f"Error handling mention: {str(e)}")
-            await self._send_error_message(event['channel'], str(e))
+            self._send_error_message(event['channel'], str(e))
 
     def _extract_days(self, text: str) -> int:
         """
         テキストから日数を抽出
-        
-        Args:
-            text: 解析するテキスト
-            
-        Returns:
-            int: 抽出した日数
         """
         pattern = r'(\d+)日|(\d+)\s*days'
         match = re.search(pattern, text)
@@ -54,12 +48,9 @@ class SlackEventHandler:
             return int(match.group(1) or match.group(2))
         return 7
 
-    async def _show_help(self, channel: str):
+    def _show_help(self, channel: str):
         """
         ヘルプメッセージを表示
-        
-        Args:
-            channel: 送信先チャンネル
         """
         blocks = [
             {
@@ -90,35 +81,32 @@ class SlackEventHandler:
         ]
 
         try:
-            await self.client.chat_postMessage(
+            self.client.chat_postMessage(
                 channel=channel,
                 blocks=blocks
             )
         except SlackApiError as e:
             self.logger.error(f"Error sending help message: {str(e)}")
 
-    async def _show_recent_articles(self, channel: str, days: int = 7):
+    def _show_recent_articles(self, channel: str, days: int = 7):
         """
         最近の記事一覧を表示
-        
-        Args:
-            channel: 送信先チャンネル
-            days: 表示する日数
         """
         try:
             # 全企業の記事を取得
-            companies = self.db.get_all_companies()
-            all_articles: List[Article] = []
-            
-            for company in companies:
-                articles = self.db.get_recent_articles(company.id, days)
-                all_articles.extend(articles)
+            companies = self.db.db.collection(self.db.config['collections']['companies']['name']).stream()
+            company_map = {}
+            for cdoc in companies:
+                cdata = cdoc.to_dict()
+                company_map[cdoc.id] = cdata.get('name', 'NoName')
+
+            all_articles: List[Article] = self.db.get_recent_articles(None, days)
 
             # 日付でソート
             all_articles.sort(key=lambda x: x.published_at, reverse=True)
 
             if not all_articles:
-                await self.client.chat_postMessage(
+                self.client.chat_postMessage(
                     channel=channel,
                     text=f"過去{days}日間の新着記事はありません。"
                 )
@@ -137,7 +125,7 @@ class SlackEventHandler:
 
             # 記事をブロックに変換
             for article in all_articles:
-                company = next(c for c in companies if c.id == article.company_id)
+                cname = company_map.get(article.company_id, "Unknown Company")
                 blocks.extend([
                     {
                         "type": "section",
@@ -145,7 +133,7 @@ class SlackEventHandler:
                             "type": "mrkdwn",
                             "text": (
                                 f"*<{article.url}|{article.title}>*\n"
-                                f"🏢 {company.name}\n"
+                                f"🏢 {cname}\n"
                                 f"📅 {article.published_at.strftime('%Y年%m月%d日 %H:%M')}\n"
                                 f"📰 {article.source.upper()}"
                             )
@@ -157,7 +145,7 @@ class SlackEventHandler:
             # 長いメッセージは分割して送信
             for i in range(0, len(blocks), 50):
                 chunk = blocks[i:i + 50]
-                await self.client.chat_postMessage(
+                self.client.chat_postMessage(
                     channel=channel,
                     blocks=chunk
                 )
@@ -166,18 +154,14 @@ class SlackEventHandler:
             self.logger.error(f"Error sending articles message: {str(e)}")
         except Exception as e:
             self.logger.error(f"Error retrieving articles: {str(e)}")
-            await self._send_error_message(channel, str(e))
+            self._send_error_message(channel, str(e))
 
-    async def _send_error_message(self, channel: str, error: str):
+    def _send_error_message(self, channel: str, error: str):
         """
         エラーメッセージを送信
-        
-        Args:
-            channel: 送信先チャンネル
-            error: エラーメッセージ
         """
         try:
-            await self.client.chat_postMessage(
+            self.client.chat_postMessage(
                 channel=channel,
                 blocks=[
                     {

@@ -7,10 +7,8 @@ from .base_scraper import BaseScraper
 class PRTimesScraper(BaseScraper):
     """
     PRTimes専用のスクレイパークラス
-
-    Args:
-        BaseScraper (_type_): 継承もと
     """
+
     def __init__(self, timeout: int = 30, retry: int = 3):
         super().__init__(timeout, retry)
         self.base_url = "https://prtimes.jp"
@@ -18,19 +16,13 @@ class PRTimesScraper(BaseScraper):
     def get_news(self, url: str) -> List[Dict[str, Any]]:
         """
         PRTimesからの企業のプレスリリース一覧を取得する
-
-        Args:
-            url (str): 企業のPRTimesページのURL
-
-        Returns:
-            List[Dict[str, Any]]: 取得した記事をdict形式で出す
         """
         soup = self._fetch_page(url)
         if not soup:
             return []
 
         articles = []
-        for article in self._find_aricles(soup):
+        for article in self._find_articles(soup):
             try:
                 article_data = self._parse_article(article)
                 if article_data:
@@ -41,27 +33,15 @@ class PRTimesScraper(BaseScraper):
         
         return articles
 
-    def _find_aricles(self, soup: BeautifulSoup) -> List[Any]:
+    def _find_articles(self, soup: BeautifulSoup) -> List[Any]:
         """
         PRTimesからニュースCardを全て取得
-
-        Args:
-            soup (BeautifulSoup): パース済みのページHTML
-
-        Returns:
-            List[Any]: 記事要素のリスト
         """
         return soup.find_all('article', class_='list-article')
 
     def _parse_article(self, article: BeautifulSoup) -> Optional[Dict[str, Any]]:
         """
         個別の記事要素をパースして記事情報を抽出
-
-        Args:
-            article (BeautifulSoup): 個別の記事要素
-
-        Returns:
-            Optional[Dict[str, Any]]: パース下記事情報
         """
         try:
             # タイトルとURLの取得
@@ -89,7 +69,7 @@ class PRTimesScraper(BaseScraper):
 
             # 概要文の取得
             content = None
-            img_elem = article.find('p', class_='list-article__summary')
+            content_elem = article.find('p', class_='list-article__summary')
             if content_elem:
                 content = self._clean_text(content_elem.text)
 
@@ -109,14 +89,8 @@ class PRTimesScraper(BaseScraper):
     def _parse_prtimes_date(self, date_str: str) -> Optional[datetime]:
         """
         PR Times固有の日付フォーマットをパース
-        
-        Args:
-            date_str: PR Timesの日付文字列
-            
-        Returns:
-            datetime: パースした日付オブジェクト
         """
-        pattern = r'(\d{4})年(\d{1,2})月(\d{1,2})日 (\d{1,2}):(\d{2})'
+        pattern = r'(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})'
         match = re.match(pattern, date_str)
         if not match:
             return None
