@@ -12,9 +12,10 @@ def set_test_environment():
     os.environ["ENVIRONMENT"] = "development"
     
     # 必要に応じてさらに環境変数をセット
-    # os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/path/to/test/service_account.json"
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/yutokohata/kotonaru_slack_news_app/my-kotonaru-project-0a7aa2ba78d0.json"
     
     yield
 
     # テスト終了時の後処理があれば実行
+    print("テスト終了")
     # （特になければ何もしない）

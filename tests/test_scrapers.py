@@ -14,6 +14,7 @@ def test_prtimes_scraper_get_news_empty(mock_scraper):
         assert articles == []
 
 def test_prtimes_scraper_get_news_ok(mock_scraper):
+    # TODO: PRTimesのサイトのHTMLと形式が異なるので修正する
     html_content = """
     <html>
       <body>

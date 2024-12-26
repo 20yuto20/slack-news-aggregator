@@ -43,6 +43,7 @@ class PRTimesScraper(BaseScraper):
         """
         個別の記事要素をパースして記事情報を抽出
         """
+        # TODO: タグの取得がPRTimesのサイトの仕様に合わないので修正する
         try:
             # タイトルとURLの取得
             title_elem = article.find('h2', class_='list-article_title')

@@ -56,11 +56,11 @@ steps:
       - |
         gcloud scheduler jobs update http news-collector-job \
           --schedule="0 */3 * * *" \
-          --uri="https://$REGION-run.googleapis.com/v1/projects/$PROJECT_ID/locations/$REGION/services/news-collector/run" \
+          --uri="https://${_REGION}-run.googleapis.com/v1/projects/$PROJECT_ID/locations/${_REGION}/services/news-collector/run" \
           --http-method=GET \
           --attempt-deadline=3600s \
           --oidc-service-account-email=cloud-run-invoker@$PROJECT_ID.iam.gserviceaccount.com \
-          --location=asia-northeast1
+          --location=${_REGION}
 
 images:
   - 'gcr.io/$PROJECT_ID/news-collector:$SHORT_SHA'
