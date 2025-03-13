@@ -14,11 +14,10 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 from firebase_functions import https_fn
-from flask import Flask
 from src.app import app
 
 @https_fn.on_request(
-    region="asia-northeast1",  # asia-northeast1に修正
+    region="asia-northeast1",
     memory=256,
     min_instances=0,
     max_instances=10,
@@ -29,16 +28,7 @@ def new_collector(req: https_fn.Request) -> https_fn.Response:
     """
     Cloud Functions のエントリーポイント
     """
-    with app.app_context():
-        return app.wsgi_app(req.environ, req.start_response)
-
-if __name__ == "__main__":
-    # ローカル開発用のサーバー起動
-    debug = os.environ.get('ENVIRONMENT') == 'development'
-    port = int(os.environ.get('PORT', 8080))
-    app.run(
-        host='0.0.0.0',
-        port=port,
-        debug=debug,
-        use_reloader=debug
-    )
+    # Firebase Functionsのリクエストを処理するために、
+    # Flaskアプリケーションを直接呼び出す
+    with app.request_context(req.environ):
+        return app.full_dispatch_request()
