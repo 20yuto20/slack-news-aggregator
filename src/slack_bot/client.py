@@ -14,7 +14,7 @@ class SlackClient:
 
     def __init__(self):
         self.config = self._load_slack_config()
-        self.client = WebClient(token=self._get_bot_token())
+        self.client = WebClient(token=self._get_bot_token(), base_url="https://slack.com/api/")
         self.logger = logging.getLogger(__name__)
         self.channel = self.config.get('default_channel')
         self.retry_count = 3
