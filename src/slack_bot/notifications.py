@@ -156,3 +156,54 @@ class SlackNotifier:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
+                    "text": error_text
+                }
+            })
+
+        try:
+            self.client.chat_postMessage(
+                channel=self.config.get('default_channel', '#news-alerts'),
+                blocks=blocks
+            )
+            self.logger.info(f"Sent scraping result notification with {success_count} successes and {fail_count} failures")
+        except SlackApiError as e:
+            self.logger.error(f"Failed to send scraping result notification: {str(e)}")
+
+    def notify_error(self, title: str, error_message: str):
+        """
+        エラーをSlackに通知
+        """
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"❌ {title}"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*エラー内容:*\n```{error_message}```"
+                }
+            },
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                    }
+                ]
+            }
+        ]
+
+        try:
+            self.client.chat_postMessage(
+                channel=self.config.get('default_channel', '#news-alerts'),
+                blocks=blocks
+            )
+            self.logger.info(f"Sent error notification: {title}")
+        except SlackApiError as e:
+            self.logger.error(f"Failed to send error notification: {str(e)}")
