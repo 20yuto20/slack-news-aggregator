@@ -2,9 +2,9 @@
 # 本番環境では実際のトークンはSecret Managerから取得
 
 development:
-  bot_token: "xoxb-dummy-token-for-development" #TODO:実際の値を挿入
-  signing_secret: "dummy-signing-secret" #TODO:実際の値を挿入
-  default_channel: "#news-dev" #TODO:実際の値を挿入
+  bot_token: "${SLACK_BOT_TOKEN}"
+  signing_secret: "${SLACK_SIGNING_SECRET}"
+  default_channel: "#cs-news"
   notification:
     success_color: "#36a64f"
     warning_color: "#ff9900"

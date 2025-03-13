@@ -12,16 +12,7 @@ def setup_logger(
 ) -> logging.Logger:
     """
     ロガーを設定する
-
-    Args:
-        name: ロガー名
-        level: ログレベル
-        use_cloud_logging: Cloud Loggingを使用するかどうか
-
-    Returns:
-        logging.Logger: 設定されたロガー
     """
-    # 基本設定
     config = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -46,12 +37,12 @@ def setup_logger(
                 'level': level,
                 'formatter': 'json',
                 'filename': 'app.log',
-                'maxBytes': 10485760,  # 10MB
+                'maxBytes': 10485760,
                 'backupCount': 5
             }
         },
         'loggers': {
-            '': {  # rootロガー
+            '': {
                 'handlers': ['console', 'file'],
                 'level': level,
                 'propagate': True
@@ -59,7 +50,6 @@ def setup_logger(
         }
     }
 
-    # 本番環境でCloud Loggingを使用
     if use_cloud_logging and os.getenv('ENVIRONMENT') == 'production':
         try:
             client = cloud_logging.Client()
@@ -74,24 +64,11 @@ def setup_logger(
         except Exception as e:
             print(f"Failed to setup Cloud Logging: {str(e)}")
 
-    # ログ設定を適用
     logging.config.dictConfig(config)
-
-    # ロガーを取得
     logger = logging.getLogger(name)
-    
     return logger
 
 def get_logger(name: str) -> logging.Logger:
-    """
-    既存のロガーを取得する
-
-    Args:
-        name: ロガー名
-
-    Returns:
-        logging.Logger: 取得したロガー
-    """
     return logging.getLogger(name)
 
 class StructuredLogger:
@@ -107,42 +84,25 @@ class StructuredLogger:
         }
 
     def _log(self, level: int, message: str, **kwargs):
-        """
-        構造化ログを出力
-
-        Args:
-            level: ログレベル
-            message: ログメッセージ
-            **kwargs: 追加のフィールド
-        """
-        # 基本フィールドとマージ
         fields = {**self.default_fields, **kwargs}
-        
-        # メッセージをJSONに変換
         log_entry = {
             'message': message,
             'severity': logging.getLevelName(level),
             **fields
         }
-        
         self.logger.log(level, json.dumps(log_entry))
 
     def info(self, message: str, **kwargs):
-        """INFOレベルのログを出力"""
         self._log(logging.INFO, message, **kwargs)
 
     def error(self, message: str, **kwargs):
-        """ERRORレベルのログを出力"""
         self._log(logging.ERROR, message, **kwargs)
 
     def warning(self, message: str, **kwargs):
-        """WARNINGレベルのログを出力"""
         self._log(logging.WARNING, message, **kwargs)
 
     def debug(self, message: str, **kwargs):
-        """DEBUGレベルのログを出力"""
         self._log(logging.DEBUG, message, **kwargs)
 
     def add_default_fields(self, fields: Dict[str, Any]):
-        """デフォルトフィールドを追加"""
         self.default_fields.update(fields)

@@ -16,7 +16,7 @@ collections:
         required: true
       - name: "source"
         type: "string"
-        enum: ["hp", "prtimes"]
+        enum: ["prtimes"]    # hp を削除
         required: true
       - name: "published_at"
         type: "timestamp"
