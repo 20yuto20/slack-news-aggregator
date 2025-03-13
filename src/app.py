@@ -8,7 +8,7 @@ from functools import wraps
 from datetime import datetime
 from pathlib import Path
 
-# ▼ 修正: インポートを src.付きに変更
+# インポートパスを修正
 from src.slack_bot.handlers import SlackEventHandler
 from src.data_access.firestore_client import FirestoreClient
 from src.run_script import NewsCollector
@@ -121,7 +121,8 @@ def slack_events():
         event = data.get('event', {})
         if event.get('type') == 'app_mention':
             try:
-                event_handler.handle_mention(event)
+                # Fix: app.event_handlerを使用する
+                app.event_handler.handle_mention(event)
             except Exception as e:
                 logger.error(f"Error handling mention: {str(e)}")
                 return jsonify({'error': str(e)}), 500

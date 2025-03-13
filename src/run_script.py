@@ -5,13 +5,15 @@ from datetime import datetime
 import time
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
-# ▼ 修正: インポート先頭に src.をつける
+# インポートパスを修正
 from src.data_access.firestore_client import FirestoreClient
 from src.data_access.models import ScrapingResult
 from src.scrapers.prtimes_scraper import PRTimesScraper
 from src.slack_bot.notifications import SlackNotifier
 
+# ロギング設定
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -27,7 +29,7 @@ class NewsCollector:
         self.config = self._load_config()
 
     def _load_config(self) -> Dict[str, Any]:
-        config_path = os.path.join(os.path.dirname(__file__), 'configs/companies.yaml')
+        config_path = os.path.join(Path(__file__).parent, 'configs/companies.yaml')
         with open(config_path, 'r', encoding='utf-8') as f:
             return yaml.safe_load(f)
 
@@ -59,7 +61,12 @@ class NewsCollector:
                             error_message=str(e)
                         ))
 
-            self.notifier.notify_scraping_result(results)
+            # 結果通知
+            if results:
+                self.notifier.notify_scraping_result(results)
+                logger.info(f"Notified results for {len(results)} companies")
+            else:
+                logger.warning("No results to notify")
 
         except Exception as e:
             logger.error(f"Critical error in news collection: {str(e)}")
@@ -73,6 +80,9 @@ class NewsCollector:
             logger.info(f"News collection process completed in {execution_time:.2f} seconds")
 
     def _process_company(self, company: Dict[str, Any]) -> List[ScrapingResult]:
+        """
+        企業ごとの処理を実行
+        """
         results = []
         company_name = company['name']
         logger.info(f"Processing company: {company_name}")
@@ -81,21 +91,29 @@ class NewsCollector:
             try:
                 prtimes_url = company['prtimes']['url']
                 scraper = PRTimesScraper()
+                
+                # PRTimesからニュース記事を取得
                 articles = scraper.get_news(prtimes_url)
+                logger.info(f"Found {len(articles)} articles for {company_name}")
+                
+                if articles:
+                    # Firestoreに保存 (URL重複はスキップ)
+                    saved_ids = self.db.save_articles(articles, company['id'])
+                    logger.info(f"Saved {len(saved_ids)} new articles for {company_name}")
 
-                # Firestoreに保存 (URL重複はスキップ)
-                saved_ids = self.db.save_articles(articles, company['id'])
-
-                if saved_ids:
-                    # 実際に保存された記事を抽出 (あるいは全件通知したいならこのままでもOK)
-                    self.notifier.notify_new_articles(articles, company_name)
-
+                    # 新規記事が保存された場合のみ通知
+                    if saved_ids:
+                        self.notifier.notify_new_articles(articles, company_name)
+                
+                # 処理結果を記録
                 results.append(ScrapingResult(
                     company_id=company['id'],
                     source='prtimes',
                     success=True,
-                    articles_count=len(articles)
+                    articles_count=len(articles),
+                    execution_time=time.time()
                 ))
+                
             except Exception as e:
                 logger.error(f"Error scraping PRTimes for {company_name}: {str(e)}")
                 results.append(ScrapingResult(

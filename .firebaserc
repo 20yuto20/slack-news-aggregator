@@ -1,21 +1,12 @@
 {
   "projects": {
-    "default": "news-collector-prod",
-    "staging": "news-collector-stg",
-    "development": "news-collector-dev"
+    "default": "my-kotonaru-project"
   },
   "targets": {
-    "news-collector-prod": {
+    "my-kotonaru-project": {
       "hosting": {
         "news-collector": [
-          "news-collector-prod"
-        ]
-      }
-    },
-    "news-collector-stg": {
-      "hosting": {
-        "news-collector": [
-          "news-collector-stg"
+          "my-kotonaru-project"
         ]
       }
     }

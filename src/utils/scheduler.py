@@ -1,210 +1,24 @@
-from typing import Any, Callable, Dict, Optional
-from google.cloud.scheduler_v1 import CloudSchedulerClient, Job, HttpTarget, HttpMethod
-from google.cloud import tasks_v2
-from datetime import datetime
-import json
-import logging
-import os
+# このモジュールは廃止され、手動設定に置き換えられます
+# scheduler.py
 
-class TaskScheduler:
-    """
-    Cloud SchedulerとCloud Tasksを使用したスケジューラー
-    """
+"""
+このファイルの機能は廃止されました。
+Cloud Schedulerは手動でGoogle Cloudコンソールから設定してください。
 
-    def __init__(self, project_id: str, location: str):
-        self.project_id = project_id
-        self.location = location
-        self.scheduler_client = CloudSchedulerClient()
-        self.tasks_client = tasks_v2.CloudTasksClient()
-        self.logger = logging.getLogger(__name__)
-        self.parent = f"projects/{project_id}/locations/{location}"
+手順:
+1. Google Cloudコンソールにアクセス
+2. Cloud Schedulerを選択
+3. ジョブを作成をクリック
+4. 以下の設定で新規ジョブを作成:
+   - 名前: daily-news-scraper
+   - 説明: 毎日のニュース収集ジョブ
+   - 頻度: 0 8 * * * (毎朝8時)
+   - タイムゾーン: Asia/Tokyo
+   - ターゲットタイプ: HTTPSエンドポイント
+   - URL: https://[YOUR-REGION]-[YOUR-PROJECT-ID].cloudfunctions.net/new_collector/run
+   - HTTPメソッド: GET
+   - 認証ヘッダー: 必要に応じて設定
 
-    def create_scheduled_job(
-        self, 
-        job_name: str,
-        schedule: str,
-        target_url: str,
-        http_method: str = 'POST',
-        body: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        description: str = ''
-    ) -> Job:
-        """
-        定期ジョブ実行を作成
-        """
-        try:
-            job_path = f"{self.parent}/jobs/{job_name}"
-            http_target = HttpTarget()
-            http_target.uri = target_url
-            http_target.http_method = getattr(HttpMethod, http_method.upper())
-
-            if body:
-                http_target.body = json.dumps(body).encode()
-
-            if headers:
-                http_target.headers = headers
-            
-            job = Job(
-                name=job_path,
-                http_target=http_target,
-                schedule=schedule,
-                time_zone="Asia/Tokyo",
-                description=description
-            )
-
-            return self.scheduler_client.create_job(
-                request={
-                    "parent": self.parent,
-                    "job": job
-                }
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error creating scheduled job: {str(e)}")
-            raise
-
-    def update_job(
-        self,
-        job_name: str,
-        schedule: Optional[str] = None,
-        target_url: Optional[str] = None,
-        body: Optional[Dict[str, Any]] = None,
-    ) -> Job:
-        """
-        ジョブを更新
-        """
-        try:
-            job_path = f"{self.parent}/jobs/{job_name}"
-            job = self.scheduler_client.get_job(name=job_path)
-
-            update_mask = []
-
-            if schedule:
-                job.schedule = schedule
-                update_mask.append("schedule")
-
-            if target_url:
-                job.http_target.uri = target_url
-                update_mask.append("http_target.uri")
-
-            if body:
-                job.http_target.body = json.dumps(body).encode()
-                update_mask.append("http_taget.body")
-
-            return self.scheduler_client.update_job(
-                request={
-                    "job": job,
-                    "update_mask": {"paths": update_mask}
-                }
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error updating job: {str(e)}")
-            raise
-
-    def delete_job(self, job_name: str):
-        """
-        ジョブを削除
-        """
-        try:
-            job_path = f"{self.parent}/jobs/{job_name}"
-            self.scheduler_client.delete_job(name=job_path)
-
-        except Exception as e:
-            self.logger.error(f"Error deleting job: {str(e)}")
-            raise
-
-    def create_one_time_task(
-        self,
-        queue_name: str,
-        task_name: str,
-        target_url: str,
-        payload: Dict[str, Any],
-        schedule_time: Optional[datetime] = None,
-        service_account_email: Optional[str] = None
-    ):
-        """
-        一回限りのタスクを作成
-        """
-        try:
-            parent = self.tasks_client.queue_path(
-                self.project_id,
-                self.location,
-                queue_name
-            )
-
-            task = {
-                'name': f'{parent}/tasks/{task_name}',
-                'http_request': {
-                    'http_method': tasks_v2.HttpMethod.POST,
-                    'url': target_url,
-                    'headers': {
-                        'Content-Type': 'application/json',
-                    },
-                    'body': json.dumps(payload).encode(),
-                }
-            }
-
-            if schedule_time:
-                task['schedule_time'] = schedule_time.strftime('%Y-%m-%dT%H:%M:%SZ')
-
-            if service_account_email:
-                task['http_request']['oidc_token'] = {
-                    'service_account_email': service_account_email
-                }
-
-            return self.tasks_client.create_task(
-                request={
-                    'parent': parent,
-                    'task': task
-                }
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error creating one-time task: {str(e)}")
-            raise
-
-    def get_job_status(self, job_name: str) -> Dict[str, Any]:
-        """
-        ジョブの状態を取得
-        """
-        try:
-            job_path = f"{self.parent}/jobs/{job_name}"
-            job = self.scheduler_client.get_job(name=job_path)
-
-            return {
-                'name': job.name,
-                'state': job.state.name,
-                'schedule': job.schedule,
-                'last_attempt_time': job.last_attempt_time,
-                'next_scheduled_time': job.next_scheduled_time,
-                'attempt_deadline': job.attempt_deadline,
-                'retry_config': {
-                    'retry_count': job.retry_config.retry_count,
-                    'max_retry_duration': job.retry_config.max_retry_duration,
-                    'min_backoff_duration': job.retry_config.min_backoff_duration,
-                    'max_backoff_duration': job.retry_config.max_backoff_duration
-                }
-            }
-
-        except Exception as e:
-            self.logger.error(f"Error getting job status: {str(e)}")
-            raise
-
-    def create_daily_scraper_schedule(
-        self,
-        job_name: str,
-        target_url: str,
-        http_method: str = 'POST',
-        description: str = 'Daily scraper job at 8 AM JST'
-    ):
-        """
-        毎朝8時(Asia/Tokyo)にスクレイピングが実行されるジョブを作成する
-        """
-        return self.create_scheduled_job(
-            job_name=job_name,
-            schedule="0 8 * * *",  # 毎朝8:00に実行
-            target_url=target_url,
-            http_method=http_method,
-            description=description
-        )
+注意: このファイルはレガシーコードとして保持していますが、
+アプリケーションからは使用されません。
+"""

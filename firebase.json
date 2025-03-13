@@ -1,9 +1,12 @@
 {
-  "functions": {
-    "source": "src",
-    "runtime": "python310",
-    "platform": "gcfv2"
-  },
+  "functions": [
+    {
+      "source": ".",
+      "codebase": "default",
+      "runtime": "python310",
+      "region": "asia-northeast1"
+    }
+  ],
   "hosting": {
     "public": "public",
     "ignore": [
@@ -15,7 +18,7 @@
       {
         "source": "/run/**",
         "run": {
-          "serviceID": "new_collector",
+          "serviceId": "new_collector",
           "region": "asia-northeast1"
         }
       }

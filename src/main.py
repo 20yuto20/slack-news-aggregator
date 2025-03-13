@@ -18,14 +18,14 @@ from flask import Flask
 from src.app import app
 
 @https_fn.on_request(
-    region="us-central1",
+    region="asia-northeast1",  # asia-northeast1に修正
     memory=256,
     min_instances=0,
     max_instances=10,
     concurrency=1,
     timeout_sec=60
 )
-def main(req: https_fn.Request) -> https_fn.Response:
+def new_collector(req: https_fn.Request) -> https_fn.Response:
     """
     Cloud Functions のエントリーポイント
     """

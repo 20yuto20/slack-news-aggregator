@@ -5,7 +5,6 @@ import logging
 import os
 import yaml
 from pathlib import Path
-from ..utils.config_loader import load_config
 
 class SlackClient:
     """
@@ -24,20 +23,42 @@ class SlackClient:
     def _load_slack_config(self) -> Dict[str, Any]:
         """Slack設定を読み込む"""
         env = os.getenv('ENVIRONMENT', 'development')
-        config = load_config('slack_config.yaml')
-        return config[env]
+        try:
+            config_path = os.path.join(Path(__file__).parent.parent, 'configs/slack_config.yaml')
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+                return config[env]
+        except Exception as e:
+            self.logger.error(f"Failed to load slack config: {e}")
+            # フォールバック設定を環境変数から直接読み込む
+            return {
+                'signing_secret': os.environ.get('SLACK_SIGNING_SECRET', ''),
+                'bot_token': os.environ.get('SLACK_BOT_TOKEN', ''),
+                'default_channel': os.environ.get('SLACK_DEFAULT_CHANNEL', '#news-prod'),
+                'notification': {
+                    'success_color': "#36a64f",
+                    'warning_color': "#ff9900",
+                    'error_color': "#dc3545"
+                }
+            }
 
     def _get_bot_token(self) -> str:
         """
         Slack Bot Tokenを取得
         """
-        if os.getenv('ENVIRONMENT') == 'production':
-            from google.cloud import secretmanager
-            client = secretmanager.SecretManagerServiceClient()
-            name = f"projects/{os.getenv('PROJECT_ID')}/secrets/slack-bot-token/versions/latest"
-            response = client.access_secret_version(request={"name": name})
-            return response.payload.data.decode("UTF-8")
-        return os.getenv('SLACK_BOT_TOKEN', self.config['bot_token'])
+        # 環境変数から直接BOT_TOKENを取得
+        token = os.getenv('SLACK_BOT_TOKEN')
+        if token:
+            return token
+            
+        # 環境変数に無い場合はconfigからのトークンを使用
+        token = self.config.get('bot_token', '')
+        # ${SLACK_BOT_TOKEN}形式の場合、環境変数から展開
+        if token and token.startswith('${') and token.endswith('}'):
+            env_var = token[2:-1]
+            return os.getenv(env_var, '')
+            
+        return token
 
     def send_message(
         self, 
@@ -51,6 +72,10 @@ class SlackClient:
         """
         channel = channel or self.channel
         retry_count = self.retry_count
+
+        # 環境変数BOT_TOKENをチェック (デバッグ用)
+        token = os.getenv('SLACK_BOT_TOKEN', 'TOKEN_NOT_SET')
+        self.logger.info(f"Using token starting with: {token[:4]}***")
 
         while retry_count > 0:
             try:
@@ -148,4 +173,15 @@ class SlackClient:
             self.client.conversations_info(channel=channel)
             return True
         except SlackApiError:
+            return False
+
+    def test_connection(self) -> bool:
+        """
+        Slack接続をテスト
+        """
+        try:
+            response = self.client.api_test()
+            return response['ok']
+        except Exception as e:
+            self.logger.error(f"Slack connection test failed: {str(e)}")
             return False

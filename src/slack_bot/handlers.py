@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from ..data_access.firestore_client import FirestoreClient
 from ..data_access.models import Article
-from src.run_script import NewsCollector  # ★ 追加: スクレイピング実行用クラス
+from src.run_script import NewsCollector
 
 class SlackEventHandler:
     """Slackイベントを処理するハンドラクラス"""
@@ -26,29 +26,33 @@ class SlackEventHandler:
         """
         try:
             text = event.get('text', '').lower()
-            bot_id = event.get('bot_id')
-            if bot_id:
-                text = text.replace(f"<@{bot_id}>", "").strip()
+            user_id = event.get('user', '')
+            channel = event.get('channel', '')
+            
+            # テキストからメンションを削除して実際のコマンド部分のみを抽出
+            text = re.sub(r'<@[A-Z0-9]+>', '', text).strip()
+            
+            self.logger.info(f"Received mention from user {user_id} in channel {channel}: '{text}'")
 
             # コマンドを解析
             if "help" in text or "ヘルプ" in text:
-                self._show_help(event['channel'])
+                self._show_help(channel)
             elif "recent" in text or "最近" in text:
                 days = self._extract_days(text) or 7
-                self._show_recent_articles(event['channel'], days)
+                self._show_recent_articles(channel, days)
             elif "run" in text:
                 # 追加: runコマンドを受けたときの処理
-                self._handle_run_command(event['channel'])
+                self._handle_run_command(channel)
             elif "all" in text:
                 # 追加: allコマンドを受けたときの処理
                 self._handle_all_command(event)
             else:
                 # 不明なコマンドの場合はヘルプ表示
-                self._show_help(event['channel'])
+                self._show_help(channel)
 
         except Exception as e:
             self.logger.error(f"Error handling mention: {str(e)}")
-            self._send_error_message(event['channel'], str(e))
+            self._send_error_message(event.get('channel', ''), str(e))
 
     def _extract_days(self, text: str) -> int:
         """
@@ -99,6 +103,7 @@ class SlackEventHandler:
                 channel=channel,
                 blocks=blocks
             )
+            self.logger.info(f"Sent help message to channel {channel}")
         except SlackApiError as e:
             self.logger.error(f"Error sending help message: {str(e)}")
 
@@ -163,6 +168,8 @@ class SlackEventHandler:
                     channel=channel,
                     blocks=chunk
                 )
+            
+            self.logger.info(f"Sent {len(all_articles)} articles to channel {channel}")
 
         except SlackApiError as e:
             self.logger.error(f"Error sending articles message: {str(e)}")
@@ -195,18 +202,25 @@ class SlackEventHandler:
     # --------------------------------------------------------------------
     def _handle_run_command(self, channel: str):
         try:
-            self.client.chat_postMessage(
+            # 実行中の通知を送信
+            response = self.client.chat_postMessage(
                 channel=channel,
                 text="スクレイピングを開始します。しばらくお待ちください..."
             )
+            
+            # スクレイピング実行
             collector = NewsCollector()
             collector.run()
-            # 既存ロジックで新着があれば SlackNotifier から通知される
-            # ここでは完了メッセージだけ返す
+            
+            # 完了通知
             self.client.chat_postMessage(
                 channel=channel,
-                text="スクレイピングが完了しました。新しい記事があれば別途通知しています。"
+                text="スクレイピングが完了しました。新しい記事があれば別途通知しています。",
+                thread_ts=response['ts']
             )
+            
+            self.logger.info(f"Successfully executed run command in channel {channel}")
+            
         except Exception as e:
             self.logger.error(f"Error running manual scraping: {str(e)}")
             self._send_error_message(channel, str(e))
@@ -288,8 +302,9 @@ class SlackEventHandler:
             if response["ok"]:
                 self.client.chat_postMessage(
                     channel=channel,
-                    text="指定した企業の過去記事をJSONファイルとしてアップロードしました。"
+                    text=f"指定した企業の過去記事をJSONファイルとしてアップロードしました（全{len(all_articles)}件）。"
                 )
+                self.logger.info(f"Successfully uploaded {len(all_articles)} articles as JSON to channel {channel}")
             else:
                 self.client.chat_postMessage(
                     channel=channel,
