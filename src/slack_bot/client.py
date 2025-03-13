@@ -14,7 +14,8 @@ class SlackClient:
 
     def __init__(self):
         self.config = self._load_slack_config()
-        self.client = WebClient(token=self._get_bot_token(), base_url="https://slack.com/api/")
+        self.token = self._get_bot_token()
+        self.client = WebClient(token=self.token, base_url="https://slack.com/api/")
         self.logger = logging.getLogger(__name__)
         self.channel = self.config.get('default_channel')
         self.retry_count = 3
@@ -49,6 +50,7 @@ class SlackClient:
         # 環境変数から直接BOT_TOKENを取得
         token = os.getenv('SLACK_BOT_TOKEN')
         if token:
+            self.logger.info(f"Using token from env var starting with: {token[:4]}..." if len(token) > 4 else "Token is too short!")
             return token
             
         # 環境変数に無い場合はconfigからのトークンを使用
@@ -56,8 +58,11 @@ class SlackClient:
         # ${SLACK_BOT_TOKEN}形式の場合、環境変数から展開
         if token and token.startswith('${') and token.endswith('}'):
             env_var = token[2:-1]
-            return os.getenv(env_var, '')
+            token = os.getenv(env_var, '')
             
+        if not token:
+            self.logger.error("Slack token is empty or not found!")
+        
         return token
 
     def send_message(
@@ -75,7 +80,7 @@ class SlackClient:
 
         # 環境変数BOT_TOKENをチェック (デバッグ用)
         token = os.getenv('SLACK_BOT_TOKEN', 'TOKEN_NOT_SET')
-        self.logger.info(f"Using token starting with: {token[:4]}***")
+        self.logger.info(f"Using token starting with: {token[:4]}***" if len(token) > 4 else "Token is too short or not set!")
 
         while retry_count > 0:
             try:
@@ -86,7 +91,8 @@ class SlackClient:
                     thread_ts=thread_ts
                 )
             except SlackApiError as e:
-                self.logger.error(f"Error sending message: {str(e)}")
+                error_msg = f"Error sending message: {str(e)}, Response: {e.response.data if hasattr(e, 'response') else 'No response data'}"
+                self.logger.error(error_msg)
                 retry_count -= 1
                 if retry_count > 0:
                     import time

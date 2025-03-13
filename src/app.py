@@ -49,7 +49,20 @@ def get_signature_verifier():
 
 def get_slack_client():
     config = get_slack_config()
-    return WebClient(token=config['bot_token'])
+    token = config['bot_token']
+    
+    # 環境変数展開サポート
+    if token and token.startswith('${') and token.endswith('}'):
+        env_var = token[2:-1]
+        token = os.environ.get(env_var, '')
+    
+    # トークンのログ記録 (開発目的)
+    if token:
+        logger.info(f"Using Slack token starting with: {token[:4]}..." if len(token) > 4 else "Token is too short!")
+    else:
+        logger.error("Slack token is empty!")
+    
+    return WebClient(token=token, base_url="https://slack.com/api/")
 
 # リクエスト時に初期化する
 @app.before_request

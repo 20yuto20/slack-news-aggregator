@@ -13,7 +13,8 @@ class SlackNotifier:
 
     def __init__(self):
         self.config = self._load_config()
-        self.client = WebClient(token=self._get_bot_token())
+        self.token = self._get_bot_token()
+        self.client = WebClient(token=self.token, base_url="https://slack.com/api/")
         self.logger = logging.getLogger(__name__)
 
     def _load_config(self) -> Dict[str, Any]:
@@ -47,6 +48,7 @@ class SlackNotifier:
         # 環境変数から直接BOT_TOKENを取得
         token = os.getenv('SLACK_BOT_TOKEN')
         if token:
+            self.logger.info(f"Using token from env var: {token[:4]}..." if len(token) > 4 else "Token is too short!")
             return token
             
         # 環境変数に無い場合はconfigからのトークンを使用
@@ -54,7 +56,10 @@ class SlackNotifier:
         # ${SLACK_BOT_TOKEN}形式の場合、環境変数から展開
         if token and token.startswith('${') and token.endswith('}'):
             env_var = token[2:-1]
-            return os.getenv(env_var, '')
+            token = os.getenv(env_var, '')
+        
+        if not token:
+            self.logger.error("Slack token is empty or not found in config!")
             
         return token
 
@@ -107,7 +112,8 @@ class SlackNotifier:
             )
             self.logger.info(f"Sent notification for {len(articles)} new articles")
         except SlackApiError as e:
-            self.logger.error(f"Failed to send Slack notification: {str(e)}")
+            error_msg = f"Failed to send Slack notification: {str(e)}, Response: {e.response.data if hasattr(e, 'response') else 'No response data'}"
+            self.logger.error(error_msg)
 
     def notify_scraping_result(self, results: List[ScrapingResult]):
         """
@@ -167,7 +173,8 @@ class SlackNotifier:
             )
             self.logger.info(f"Sent scraping result notification with {success_count} successes and {fail_count} failures")
         except SlackApiError as e:
-            self.logger.error(f"Failed to send scraping result notification: {str(e)}")
+            error_msg = f"Failed to send scraping result notification: {str(e)}, Response: {e.response.data if hasattr(e, 'response') else 'No response data'}"
+            self.logger.error(error_msg)
 
     def notify_error(self, title: str, error_message: str):
         """
@@ -206,4 +213,5 @@ class SlackNotifier:
             )
             self.logger.info(f"Sent error notification: {title}")
         except SlackApiError as e:
-            self.logger.error(f"Failed to send error notification: {str(e)}")
+            error_msg = f"Failed to send error notification: {str(e)}, Response: {e.response.data if hasattr(e, 'response') else 'No response data'}"
+            self.logger.error(error_msg)
