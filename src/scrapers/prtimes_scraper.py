@@ -4,29 +4,27 @@ import re
 import time
 import logging
 
-# --- ここから追加: Selenium 関連 ---
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException, TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
 
 from bs4 import BeautifulSoup
-
-# --- ここまで追加 ---
-
 from .base_scraper import BaseScraper
 
 
 class PRTimesScraper(BaseScraper):
     """
-    PRTimes専用のスクレイパークラス (Selenium版)
+    PRTimes専用のスクレイパークラス (Selenium版) - 2025年3月版
     """
 
     def __init__(self, timeout: int = 30, retry: int = 3):
         super().__init__(timeout, retry)
         self.base_url = "https://prtimes.jp"
+        self.logger = logging.getLogger(__name__)
 
     def get_news(self, url: str) -> List[Dict[str, Any]]:
         """
@@ -43,9 +41,12 @@ class PRTimesScraper(BaseScraper):
         try:
             # 1. Seleniumドライバーの初期化
             options = webdriver.ChromeOptions()
-            options.add_argument('--headless')  # 必要に応じてヘッドレス
+            options.add_argument('--headless')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--window-size=1920,1080')
+            options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
             
             # ChromeDriverのバージョン管理を改善
             driver_manager = ChromeDriverManager().install()
@@ -58,7 +59,9 @@ class PRTimesScraper(BaseScraper):
             driver.set_page_load_timeout(self.timeout)
 
             # 2. 対象URLを開く
+            self.logger.info(f"Opening URL: {url}")
             driver.get(url)
+            time.sleep(3)  # ページ読み込み待ち
 
             # 3. 「もっと見る」ボタンをクリックして全記事をロード
             self._load_all_articles(driver)
@@ -69,6 +72,8 @@ class PRTimesScraper(BaseScraper):
 
             # 5. 記事一覧を探し出し、各記事をパース
             article_elements = self._find_articles(soup)
+            self.logger.info(f"Found {len(article_elements)} article elements")
+            
             for elem in article_elements:
                 try:
                     article_data = self._parse_article(elem)
@@ -90,19 +95,48 @@ class PRTimesScraper(BaseScraper):
         """
         もっと見るボタンがある間クリックし続ける
         """
-        while True:
+        try:
+            # 初回のload-moreの検出を待つ
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, '[data-testid="load-more"]'))
+            )
+        except TimeoutException:
+            self.logger.info("No 'load more' button found, only showing initial articles")
+            return
+        
+        max_clicks = 10  # 安全のために最大クリック回数を制限
+        click_count = 0
+        
+        while click_count < max_clicks:
             try:
-                load_more_button = driver.find_element(By.CSS_SELECTOR, '[data-testid="load-more"]')
-                load_more_button.click()
-                time.sleep(1.5)  # ページ読み込み待ち
-            except NoSuchElementException:
-                # もっと見るボタンが見つからない -> 全部読み込み済
+                # スクロールして「もっと見る」ボタンを表示
+                driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 500);")
+                time.sleep(1)
+                
+                # ボタンを探して押す
+                load_more_button = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, '[data-testid="load-more"]'))
+                )
+                
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", load_more_button)
+                time.sleep(0.5)
+                
+                self.logger.info(f"Clicking 'load more' button (attempt {click_count + 1})")
+                driver.execute_script("arguments[0].click();", load_more_button)
+                click_count += 1
+                time.sleep(2)  # ページ読み込み待ち
+                
+            except TimeoutException:
+                self.logger.info("No more 'load more' button found - all content loaded")
                 break
             except ElementClickInterceptedException:
-                # スクロールが必要な場合があるので、下へスクロールして再試行
+                self.logger.warning("Click intercepted, trying to scroll and retry")
                 driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                time.sleep(1.0)
+                time.sleep(1)
                 continue
+            except Exception as e:
+                self.logger.error(f"Error clicking 'load more' button: {str(e)}")
+                break
 
     def _find_articles(self, soup: BeautifulSoup) -> List[Any]:
         """
@@ -111,9 +145,11 @@ class PRTimesScraper(BaseScraper):
         """
         container = soup.find('ul', {'data-testid': 'press-release-list'})
         if not container:
+            self.logger.warning("Could not find article container with data-testid='press-release-list'")
             return []
 
-        return container.find_all('article', {'data-testid': 'release-item'})
+        articles = container.find_all('article', {'data-testid': 'release-item'})
+        return articles
 
     def _parse_article(self, article: BeautifulSoup) -> Optional[Dict[str, Any]]:
         """
@@ -121,14 +157,23 @@ class PRTimesScraper(BaseScraper):
         """
         try:
             # リンク (詳細ページURL)
-            link_tag = article.find('a', class_='_wrapperLink_1xc1t_11')
+            link_tag = article.find('a', class_='_wrapperLink')
+            if not link_tag:
+                # クラス名の先頭部分で検索する（数字部分が変わる可能性があるため）
+                link_tag = article.find('a', class_=lambda x: x and x.startswith('_wrapperLink'))
+            
             if not link_tag or not link_tag.get('href'):
                 return None
+                
             article_url = self.base_url + link_tag['href']
 
             # タイトル
-            title_tag = article.find('h3', {'data-testid': 'release-title'})
-            title_text = self._clean_text(title_tag.get_text()) if title_tag else None
+            title_tag = article.find('h2', {'data-testid': 'release-title'})
+            if not title_tag:
+                # h3タグの場合もある
+                title_tag = article.find(['h2', 'h3'], {'data-testid': 'release-title'})
+                
+            title_text = self._clean_text(title_tag.get_text()) if title_tag else "No title found"
 
             # 日時 (<time datetime="...")
             time_tag = article.find('time')
@@ -143,11 +188,11 @@ class PRTimesScraper(BaseScraper):
                 published_at = self._parse_prtimes_date(published_at_str)
 
             # 会社名
-            company_tag = article.find('a', class_='_infoCompany_1xc1t_36')
+            company_tag = article.find('a', class_=lambda x: x and x.startswith('_infoCompany'))
             company_name = self._clean_text(company_tag.get_text()) if company_tag else None
 
             # 画像URL (サムネイル)
-            img_tag = article.find('img', class_='_thumbnail_1xc1t_17')
+            img_tag = article.find('img', class_=lambda x: x and x.startswith('_thumbnail'))
             image_url = img_tag['src'] if img_tag and img_tag.has_attr('src') else None
 
             return {
@@ -171,12 +216,13 @@ class PRTimesScraper(BaseScraper):
             # マイクロ秒が含まれる/含まれないなど細かい差異がある場合は dateutil を使うのも良いです
             from dateutil import parser
             return parser.parse(date_str)
-        except Exception:
+        except Exception as e:
+            self.logger.error(f"Error parsing ISO date '{date_str}': {str(e)}")
             return None
 
     def _parse_prtimes_date(self, date_str: str) -> Optional[datetime]:
         """
-        例: '2024年12月19日 14時00分' のような文字列を解析
+        例: '2025年3月6日 10時00分' のような文字列を解析
         """
         pattern = r'(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2})時(\d{1,2})分'
         match = re.search(pattern, date_str)
