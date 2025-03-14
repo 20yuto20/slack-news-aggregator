@@ -200,6 +200,7 @@ class SlackEventHandler:
     # --------------------------------------------------------------------
     # 追加: run コマンドを受けてスクレイピングを実行するメソッド
     # --------------------------------------------------------------------
+    # _handle_run_command メソッドのみ表示
     def _handle_run_command(self, channel: str):
         try:
             # 実行中の通知を送信
@@ -209,17 +210,25 @@ class SlackEventHandler:
             )
             
             # スクレイピング実行
-            collector = NewsCollector()
-            collector.run()
-            
-            # 完了通知
-            self.client.chat_postMessage(
-                channel=channel,
-                text="スクレイピングが完了しました。新しい記事があれば別途通知しています。",
-                thread_ts=response['ts']
-            )
-            
-            self.logger.info(f"Successfully executed run command in channel {channel}")
+            try:
+                collector = NewsCollector()
+                collector.run()
+                
+                # 完了通知
+                self.client.chat_postMessage(
+                    channel=channel,
+                    text="スクレイピングが完了しました。新しい記事があれば別途通知しています。",
+                    thread_ts=response['ts']
+                )
+                
+                self.logger.info(f"Successfully executed run command in channel {channel}")
+            except Exception as e:
+                self.logger.error(f"Error running collector: {str(e)}")
+                self.client.chat_postMessage(
+                    channel=channel,
+                    text=f"スクレイピング実行中にエラーが発生しました。\n```{str(e)}```",
+                    thread_ts=response['ts']
+                )
             
         except Exception as e:
             self.logger.error(f"Error running manual scraping: {str(e)}")

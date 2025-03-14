@@ -27,6 +27,7 @@ class NewsCollector:
         self.db = FirestoreClient()
         self.notifier = SlackNotifier()
         self.config = self._load_config()
+        self.logger = logging.getLogger(__name__)  # loggerの初期化を追加
 
     def _load_config(self) -> Dict[str, Any]:
         config_path = os.path.join(Path(__file__).parent, 'configs/companies.yaml')
@@ -63,17 +64,23 @@ class NewsCollector:
 
             # 結果通知
             if results:
-                self.notifier.notify_scraping_result(results)
-                logger.info(f"Notified results for {len(results)} companies")
+                try:  # 例外処理を追加
+                    self.notifier.notify_scraping_result(results)
+                    logger.info(f"Notified results for {len(results)} companies")
+                except Exception as e:
+                    logger.error(f"Error notifying results: {str(e)}")
             else:
                 logger.warning("No results to notify")
 
         except Exception as e:
             logger.error(f"Critical error in news collection: {str(e)}")
-            self.notifier.notify_error(
-                "ニュース収集処理でクリティカルエラーが発生しました",
-                str(e)
-            )
+            try:  # 例外処理を追加
+                self.notifier.notify_error(
+                    "ニュース収集処理でクリティカルエラーが発生しました",
+                    str(e)
+                )
+            except Exception as notify_err:
+                logger.error(f"Error sending error notification: {str(notify_err)}")
             raise
         finally:
             execution_time = time.time() - start_time
@@ -103,7 +110,10 @@ class NewsCollector:
 
                     # 新規記事が保存された場合のみ通知
                     if saved_ids:
-                        self.notifier.notify_new_articles(articles, company_name)
+                        try:  # 例外処理を追加
+                            self.notifier.notify_new_articles(articles, company_name)
+                        except Exception as e:
+                            logger.error(f"Error notifying new articles: {str(e)}")
                 
                 # 処理結果を記録
                 results.append(ScrapingResult(
