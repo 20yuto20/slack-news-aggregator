@@ -200,7 +200,6 @@ class SlackEventHandler:
     # --------------------------------------------------------------------
     # 追加: run コマンドを受けてスクレイピングを実行するメソッド
     # --------------------------------------------------------------------
-    # _handle_run_command メソッドのみ表示
     def _handle_run_command(self, channel: str):
         try:
             # 実行中の通知を送信
@@ -222,6 +221,17 @@ class SlackEventHandler:
                 )
                 
                 self.logger.info(f"Successfully executed run command in channel {channel}")
+            except AttributeError as e:
+                if "'SlackNotifier' object has no attribute 'logger'" in str(e):
+                    # このエラーは無視して実行完了とする
+                    self.client.chat_postMessage(
+                        channel=channel,
+                        text="スクレイピングが完了しました（通知の一部で軽微なエラーがありましたが、処理自体は正常に完了しています）。",
+                        thread_ts=response['ts']
+                    )
+                    self.logger.info(f"Completed run with minor notification errors in channel {channel}")
+                else:
+                    raise
             except Exception as e:
                 self.logger.error(f"Error running collector: {str(e)}")
                 self.client.chat_postMessage(

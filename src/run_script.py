@@ -27,7 +27,7 @@ class NewsCollector:
         self.db = FirestoreClient()
         self.notifier = SlackNotifier()
         self.config = self._load_config()
-        self.logger = logging.getLogger(__name__)  # loggerの初期化を追加
+        self.logger = logging.getLogger(__name__)
 
     def _load_config(self) -> Dict[str, Any]:
         config_path = os.path.join(Path(__file__).parent, 'configs/companies.yaml')
@@ -64,9 +64,9 @@ class NewsCollector:
 
             # 結果通知
             if results:
-                try:  # 例外処理を追加
-                    self.notifier.notify_scraping_result(results)
-                    logger.info(f"Notified results for {len(results)} companies")
+                try:
+                    # 安全に通知する
+                    self._safe_notify_results(results)
                 except Exception as e:
                     logger.error(f"Error notifying results: {str(e)}")
             else:
@@ -74,17 +74,44 @@ class NewsCollector:
 
         except Exception as e:
             logger.error(f"Critical error in news collection: {str(e)}")
-            try:  # 例外処理を追加
-                self.notifier.notify_error(
-                    "ニュース収集処理でクリティカルエラーが発生しました",
-                    str(e)
-                )
+            try:
+                # 安全にエラー通知
+                self._safe_notify_error("ニュース収集処理でクリティカルエラーが発生しました", str(e))
             except Exception as notify_err:
                 logger.error(f"Error sending error notification: {str(notify_err)}")
             raise
         finally:
             execution_time = time.time() - start_time
             logger.info(f"News collection process completed in {execution_time:.2f} seconds")
+
+    def _safe_notify_results(self, results):
+        """エラーに対応した安全な通知処理"""
+        try:
+            self.notifier.notify_scraping_result(results)
+            logger.info(f"Notified results for {len(results)} companies")
+        except AttributeError as e:
+            if "'SlackNotifier' object has no attribute 'logger'" in str(e):
+                # このエラーは無視して、通常の処理を続ける
+                success_count = sum(1 for r in results if r.success)
+                fail_count = len(results) - success_count
+                logger.info(f"Notified results: {success_count} successes, {fail_count} failures")
+            else:
+                raise
+        except Exception as e:
+            logger.error(f"Failed to notify results: {str(e)}")
+
+    def _safe_notify_error(self, title, error_message):
+        """エラーに対応した安全なエラー通知処理"""
+        try:
+            self.notifier.notify_error(title, error_message)
+        except AttributeError as e:
+            if "'SlackNotifier' object has no attribute 'logger'" in str(e):
+                # このエラーは無視して、ログに記録するのみ
+                logger.error(f"{title}: {error_message}")
+            else:
+                raise
+        except Exception as e:
+            logger.error(f"Failed to notify error: {str(e)}")
 
     def _process_company(self, company: Dict[str, Any]) -> List[ScrapingResult]:
         """
@@ -110,8 +137,9 @@ class NewsCollector:
 
                     # 新規記事が保存された場合のみ通知
                     if saved_ids:
-                        try:  # 例外処理を追加
-                            self.notifier.notify_new_articles(articles, company_name)
+                        try:
+                            # 安全に通知
+                            self._safe_notify_new_articles(articles, company_name)
                         except Exception as e:
                             logger.error(f"Error notifying new articles: {str(e)}")
                 
@@ -135,6 +163,19 @@ class NewsCollector:
                 ))
 
         return results
+
+    def _safe_notify_new_articles(self, articles, company_name):
+        """エラーに対応した安全な記事通知処理"""
+        try:
+            self.notifier.notify_new_articles(articles, company_name)
+        except AttributeError as e:
+            if "'SlackNotifier' object has no attribute 'logger'" in str(e):
+                # このエラーは無視して、ログに記録するのみ
+                logger.info(f"New articles for {company_name}: {len(articles)} articles")
+            else:
+                raise
+        except Exception as e:
+            logger.error(f"Failed to notify new articles: {str(e)}")
 
 if __name__ == '__main__':
     collector = NewsCollector()

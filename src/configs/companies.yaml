@@ -16,6 +16,13 @@ companies:
     url: "https://prtimes.jp/main/html/searchrlp/company_id/102171"
     enabled: true
 
+- id: "B23000182"
+  name: "HelloWorld株式会社"
+  # HPニュース設定 (hp_news) を削除
+  prtimes:
+    url: "https://prtimes.jp/main/html/searchrlp/company_id/68077"
+    enabled: true
+
 # スクレイピング共通設定
 scraping:
   interval: 3600  # スクレイピング間隔(秒)
