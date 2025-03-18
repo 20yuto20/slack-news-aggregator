@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "my-kotonaru-project"
+  },
+  "targets": {
+    "my-kotonaru-project": {
+      "hosting": {
+        "news-collector": [
+          "my-kotonaru-project"
+        ]
+      }
+    }
+  }
+}

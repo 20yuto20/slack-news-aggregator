@@ -1,0 +1,12 @@
+.env
+.env.yaml
+repopack-output.txt
+my-kotonaru-project-0a7aa2ba78d0.json
+venv
+my-kotonaru-project-firebase-adminsdk-5972o-7ba0c3f61a.json
+.pytest_cache
+.vscode/
+./test/__pycache__/
+*.log
+scraped_articles.json
+/bin/

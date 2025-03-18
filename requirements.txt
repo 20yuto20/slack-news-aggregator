@@ -1,0 +1,64 @@
+# Web Framework
+Flask==2.3.3
+gunicorn<21.0,>=19.2.0
+firebase-functions>=0.4.2
+
+# Firebase Admin SDK
+firebase-admin==6.2.0
+
+# Slack SDK
+slack-sdk==3.21.3
+
+# Scraping
+requests==2.31.0
+beautifulsoup4==4.12.2
+lxml==4.9.3
+selenium==4.15.0
+webdriver-manager==4.0.0
+
+# YAML Processing
+PyYAML==6.0.1
+
+# aiohttp
+aiohttp==3.8.5
+
+# Date/Time Handling
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Cloud Services
+google-cloud-secret-manager==2.16.3
+google-cloud-logging==3.5.0
+google-cloud-scheduler==2.11.0
+
+# 追加: Cloud Tasks
+google-cloud-tasks==2.15.0
+
+# Monitoring & Logging
+opentelemetry-api==1.20.0
+opentelemetry-sdk==1.20.0
+opentelemetry-instrumentation-flask==0.41b0
+
+# Type Hints
+types-PyYAML==6.0.12.11
+types-requests==2.31.0.2
+
+# Security
+cryptography==41.0.3
+
+# Performance
+cachetools==5.3.1
+
+# Functions Framework
+functions-framework==3.4.0
+
+# Testing
+pytest==7.4.2
+pytest-asyncio==0.21.1
+
+firebase-functions>=0.1.0
+flask>=2.0.0
+
+python-dotenv>=1.0.0
+
+psutil>=5.9.0

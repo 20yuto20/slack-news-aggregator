@@ -1,0 +1,44 @@
+# Slack設定
+# 本番環境では実際のトークンはSecret Managerから取得
+
+development:
+  bot_token: "${SLACK_BOT_TOKEN}"
+  signing_secret: "${SLACK_SIGNING_SECRET}"
+  default_channel: "#cs-news"
+  notification:
+    success_color: "#36a64f"
+    warning_color: "#ff9900"
+    error_color: "#dc3545"
+
+staging:
+  bot_token: "${SLACK_BOT_TOKEN}"
+  signing_secret: "${SLACK_SIGNING_SECRET}"
+  default_channel: "#news-staging"
+  notification:
+    success_color: "#36a64f"
+    warning_color: "#ff9900"
+    error_color: "#dc3545"
+
+production:
+  bot_token: "${SLACK_BOT_TOKEN}"
+  signing_secret: "${SLACK_SIGNING_SECRET}"
+  default_channel: "#news-prod"
+  notification:
+    success_color: "#36a64f"
+    warning_color: "#ff9900"
+    error_color: "#dc3545"
+
+# メッセージテンプレート
+message_templates:
+  new_article: |
+    *新着記事のお知らせ*
+    企業: {company_name}
+    タイトル: {title}
+    URL: {url}
+    公開日: {published_at}
+
+  error: |
+    *エラーが発生しました*
+    種類: {error_type}
+    詳細: {error_message}
+    タイムスタンプ: {timestamp}

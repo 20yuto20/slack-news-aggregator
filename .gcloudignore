@@ -1,0 +1,13 @@
+.gcloudignore
+.git
+.gitignore
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+venv/
+*.log
+# binディレクトリは除外しない
+!bin/
+!bin/headless-chromium
+!bin/chromedriver 
