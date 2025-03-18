@@ -3,6 +3,8 @@ from datetime import datetime
 import re
 import time
 import logging
+import os
+from pathlib import Path
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -13,6 +15,7 @@ from selenium.common.exceptions import NoSuchElementException, ElementClickInter
 from webdriver_manager.chrome import ChromeDriverManager
 
 from bs4 import BeautifulSoup
+import requests
 from .base_scraper import BaseScraper
 
 
@@ -40,6 +43,7 @@ class PRTimesScraper(BaseScraper):
         driver = None
         try:
             # 1. Seleniumドライバーの初期化
+            print("Seleniumドライバを初期化します...")
             options = webdriver.ChromeOptions()
             options.add_argument('--headless')
             options.add_argument('--no-sandbox')
@@ -48,10 +52,22 @@ class PRTimesScraper(BaseScraper):
             options.add_argument('--window-size=1920,1080')
             options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36')
             
-            # ChromeDriverのバージョン管理を改善
-            driver_manager = ChromeDriverManager().install()
+            # ダウンロードしたChrome実行ファイルへのパスを設定
+            chrome_path = str(Path(__file__).parent.parent.parent / 'bin' / 'headless-chromium')
+            if os.path.exists(chrome_path):
+                options.binary_location = chrome_path
+                self.logger.info(f"Using Chrome binary at: {chrome_path}")
             
-            service = ChromeService(executable_path=driver_manager)
+            # ChromeDriverへのパスを設定
+            driver_path = str(Path(__file__).parent.parent.parent / 'bin' / 'chromedriver')
+            if os.path.exists(driver_path):
+                service = ChromeService(executable_path=driver_path)
+                self.logger.info(f"Using ChromeDriver at: {driver_path}")
+            else:
+                # ChromeDriverManager を使用
+                driver_manager = ChromeDriverManager().install()
+                service = ChromeService(executable_path=driver_manager)
+            
             driver = webdriver.Chrome(
                 service=service,
                 options=options
@@ -59,18 +75,22 @@ class PRTimesScraper(BaseScraper):
             driver.set_page_load_timeout(self.timeout)
 
             # 2. 対象URLを開く
+            print("対象URLを開きます...")
             self.logger.info(f"Opening URL: {url}")
             driver.get(url)
             time.sleep(3)  # ページ読み込み待ち
 
             # 3. 「もっと見る」ボタンをクリックして全記事をロード
+            print("さらにページを追加で読み込みます...")
             self._load_all_articles(driver)
 
             # 4. 最終的なページのHTMLを取得し、BeautifulSoupでパース
+            print("最終的なページのHTMLを取得し、BeautifulSoupでパースします...")
             html = driver.page_source
             soup = BeautifulSoup(html, 'html.parser')
 
             # 5. 記事一覧を探し出し、各記事をパース
+            print("記事をパースします...")
             article_elements = self._find_articles(soup)
             self.logger.info(f"Found {len(article_elements)} article elements")
             
@@ -84,11 +104,62 @@ class PRTimesScraper(BaseScraper):
                     continue
 
         except Exception as e:
-            self.logger.error(f"Failed to scrape PR Times: {str(e)}")
+            self.logger.error(f"Failed to scrape PR Times with Selenium: {str(e)}")
+            # Seleniumでの取得に失敗したら、requestsとBeautifulSoupでフォールバック
+            self.logger.info("Falling back to requests+BeautifulSoup method")
+            try:
+                articles_data = self._get_news_with_requests(url)
+            except Exception as fallback_e:
+                self.logger.error(f"Fallback scraping also failed: {str(fallback_e)}")
         finally:
             if driver:
                 driver.quit()
 
+        return articles_data
+
+    def _get_news_with_requests(self, url: str) -> List[Dict[str, Any]]:
+        """
+        requestsとBeautifulSoupを使用した代替スクレイピングメソッド
+        Seleniumが使えない環境のためのフォールバック
+
+        Args:
+            url (str): 企業のプレスリリース一覧のURL
+
+        Returns:
+            List[Dict[str, Any]]: 取得した記事のリスト
+        """
+        articles_data = []
+        
+        try:
+            # 1. ページの取得
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=self.timeout)
+            response.raise_for_status()
+            
+            # 2. BeautifulSoupでパース
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # 3. 記事一覧を探し出す（Seleniumメソッドと同じ関数を使用）
+            article_elements = self._find_articles(soup)
+            self.logger.info(f"Found {len(article_elements)} article elements with requests method")
+            
+            # 4. 各記事をパース
+            for elem in article_elements:
+                try:
+                    article_data = self._parse_article(elem)
+                    if article_data:
+                        articles_data.append(article_data)
+                except Exception as e:
+                    self.logger.error(f"Failed to parse article: {str(e)}")
+                    continue
+            
+            self.logger.info(f"Successfully scraped {len(articles_data)} articles with requests method")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to scrape with requests method: {str(e)}")
+        
         return articles_data
 
     def _load_all_articles(self, driver) -> None:

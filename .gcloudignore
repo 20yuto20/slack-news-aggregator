@@ -6,4 +6,8 @@ __pycache__/
 .pytest_cache/
 tests/
 venv/
-*.log 
+*.log
+# binディレクトリは除外しない
+!bin/
+!bin/headless-chromium
+!bin/chromedriver 
