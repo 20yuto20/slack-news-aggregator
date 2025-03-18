@@ -9,4 +9,4 @@ my-kotonaru-project-firebase-adminsdk-5972o-7ba0c3f61a.json
 ./test/__pycache__/
 *.log
 scraped_articles.json
-./bin/headless-chromium
+/bin/
